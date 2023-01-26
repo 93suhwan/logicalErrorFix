@@ -1,0 +1,52 @@
+#include <bits/stdc++.h>
+using namespace std;
+long long n, s, a, b, c, d, j;
+vector<double> v;
+double m, x, y, z;
+int main() {
+  ios::sync_with_stdio(false);
+  cin.tie(0);
+  int nt;
+  cin >> nt;
+  while (nt--) {
+    s = 0;
+    v.clear();
+    cin >> n;
+    for (int i = 0; i < n; i++) {
+      cin >> c;
+      s = s + c;
+      v.push_back(c);
+    }
+    sort(v.begin(), v.end());
+    m = double(s) / double(n);
+    s = 0;
+    for (int i = 0; v[i] <= m; i++) {
+      x = 2 * m - v[i];
+      if (double(x) != m) {
+        auto it = lower_bound(v.begin(), v.end(), x);
+        if (it != v.end()) {
+          auto jt = upper_bound(v.begin(), v.end(), x);
+          j = (jt - v.begin());
+          a = jt - it;
+          s += a;
+        }
+      } else {
+        auto it = lower_bound(v.begin(), v.end(), x);
+        auto jt = upper_bound(v.begin(), v.end(), x);
+        a = jt - it;
+        if (a & 1) {
+          b = (a - 1) / 2;
+          b *= a;
+          s += b;
+        } else {
+          b = a / 2;
+          b *= (a - 1);
+          s += b;
+        }
+        break;
+      }
+    }
+    cout << int(s) << '\n';
+  }
+  return 0;
+}

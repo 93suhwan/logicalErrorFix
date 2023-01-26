@@ -1,0 +1,34 @@
+#include <bits/stdc++.h>
+using namespace std;
+const long long mod = 1e9 + 7;
+const long long N = 2e6;
+int arr[N];
+int main() {
+  ios_base::sync_with_stdio(false);
+  cin.tie(0);
+  cout.tie(0);
+  int t;
+  cin >> t;
+  while (t--) {
+    int n, m;
+    cin >> m;
+    cin >> n;
+    int ans = 0;
+    for (int i = 1; i <= n; i++) {
+      cin >> arr[i];
+      int l = 0;
+      int r = i;
+      while (r - l > 1) {
+        int mid = (r + l) / 2;
+        if (arr[mid] >= arr[i]) {
+          r = mid;
+        } else {
+          l = mid;
+        }
+      }
+      ans += l;
+      sort(arr + 1, arr + 1 + i);
+    }
+    cout << ans << endl;
+  }
+}

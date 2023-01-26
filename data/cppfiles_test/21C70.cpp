@@ -1,0 +1,68 @@
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+template <class C>
+void mini(C &a, C b) {
+  a = min(a, b);
+}
+template <class C>
+void maxi(C &a, C b) {
+  a = max(a, b);
+}
+double PI = acos(-1.0);
+const ll mod = 998244353;
+const ll INF = 5e18;
+const double eps = 0.000000001;
+const int N = 100;
+int dp[N + 1][N + 1][N + 1];
+int comb[N + 1][N + 1];
+int fact[N + 1];
+int p;
+void precalc() {
+  for (int i = 0; i < N + 1; i++)
+    for (int j = 0; j < N + 1; j++)
+      for (int l = 0; l < N + 1; l++) dp[i][j][l] = -1;
+  fact[0] = 1;
+  for (int(i) = 1; i <= N; i++) fact[i] = (ll)fact[i - 1] * (ll)i % p;
+  for (int i = 0; i < N + 1; i++) {
+    comb[i][0] = comb[i][i] = 1;
+    for (int(j) = 1; j <= i - 1; j++)
+      comb[i][j] = (comb[i - 1][j - 1] + comb[i - 1][j]) % p;
+  }
+}
+ll f(int n, int m, int k) {
+  if (n == 0) return 1;
+  if (m > n and k != 0) return 0;
+  if (m == 1) {
+    if (k == 1)
+      return fact[n];
+    else
+      return 0;
+  }
+  register int &res = dp[n][m][k];
+  if (res == -1) {
+    res = 0;
+    for (int(i) = 1; i <= n; i++) {
+      int suma = 0;
+      for (int k1 = max(0, k - n + i); k1 <= min(k, i - 1); k1++) {
+        int k2 = k - k1;
+        suma = (suma + 1ll * f(i - 1, m - 1, k1) * f(n - i, m - 1, k2)) % p;
+      }
+      res = (res + 1ll * suma * comb[n - 1][i - 1]) % p;
+    }
+  }
+  return dp[n][m][k];
+}
+void a() {
+  int n, m, k;
+  cin >> n >> m >> k >> p;
+  precalc();
+  cout << f(n, m, k) << '\n';
+}
+int main() {
+  std::ios::sync_with_stdio(false);
+  cin.tie(0);
+  cout.tie(0);
+  a();
+  return 0;
+}

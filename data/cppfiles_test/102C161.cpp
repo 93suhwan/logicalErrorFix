@@ -1,0 +1,176 @@
+#include <bits/stdc++.h>
+#pragma GCC optimize("O2")
+using namespace std;
+struct custom_hash {
+  static uint64_t splitmix64(uint64_t x) {
+    x += 0x9e3779b97f4a7c15;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111eb;
+    return x ^ (x >> 31);
+  }
+  size_t operator()(uint64_t x) const {
+    static const uint64_t FIXED_RANDOM =
+        chrono::steady_clock::now().time_since_epoch().count();
+    return splitmix64(x + FIXED_RANDOM);
+  }
+};
+long long int modmul(long long int a, long long int b) {
+  return ((a % 1000000007) * (b % 1000000007)) % 1000000007;
+}
+long long int modadd(long long int a, long long int b) {
+  return (((a % 1000000007) + (b % 1000000007))) % 1000000007;
+}
+long long modExpo(long long a, long long b, long long m) {
+  long long result = 1;
+  a = a % m;
+  while (b > 0) {
+    if (b % 2) {
+      result = modmul(result, a);
+      b--;
+    } else {
+      a = modmul(a, a);
+      b /= 2;
+    }
+  }
+  return result % m;
+}
+long long int gcd(long long int a, long long int b) {
+  if (b == 0)
+    return a;
+  else
+    return gcd(b, a % b);
+}
+class comp {
+ public:
+  bool operator()(int a, int b) const { return a > b; }
+};
+bool compa(pair<long long int, long long int> a,
+           pair<long long int, long long int> b) {
+  return a.first > b.first;
+}
+void answerNikalBc(long long int t1) {
+  long long int n, m;
+  cin >> n >> m;
+  string s;
+  cin >> s;
+  long long int sz = s.size();
+  vector<long long int> lr, ud;
+  for (auto a : s) {
+    if (a == 'L' || a == 'R') {
+      lr.push_back(a);
+    } else {
+      ud.push_back(a);
+    }
+  }
+  long long int maxil = 0, maxir = 0, maxiu = 0, maxid = 0;
+  long long int lidx = -1, ridx = -1, uidx = -1, didx = -1;
+  long long int szlr = lr.size();
+  long long int szud = ud.size();
+  long long int l = 0, r = 0, u = 0, d = 0;
+  for (long long int i = 0; i < szlr; i++) {
+    if (lr[i] == 'L' && l != m - 1) {
+      l++;
+      if (maxil < l) {
+        maxil = l;
+        lidx = i;
+      }
+      if (r != 0) {
+        r--;
+      }
+    } else if (lr[i] == 'L' && l == m - 1) {
+      break;
+    }
+    if (lr[i] == 'R' && r != m - 1) {
+      r++;
+      if (maxir < r) {
+        maxir = r;
+        ridx = i;
+      }
+      if (l != 0) {
+        l--;
+      }
+    } else if (lr[i] == 'R' && r == m - 1) {
+      break;
+    }
+  }
+  for (long long int i = 0; i < szud; i++) {
+    if (ud[i] == 'U' && u != n - 1) {
+      u++;
+      if (maxiu < u) {
+        maxiu = u;
+        uidx = i;
+      }
+      if (d != 0) {
+        d--;
+      }
+    } else if (ud[i] == 'U' && u == n - 1) {
+      break;
+    }
+    if (ud[i] == 'D' && d != n - 1) {
+      d++;
+      if (maxid < d) {
+        maxid = d;
+        didx = i;
+      }
+      if (u != 0) {
+        u--;
+      }
+    } else if (ud[i] == 'D' && d == n - 1) {
+      break;
+    }
+  }
+  long long int row, col;
+  if (ud.size() == 0) {
+    row = 1;
+  }
+  if (lr.size() == 0) {
+    col = 1;
+  }
+  if (lr.size() != 0) {
+    long long int i;
+    if (maxil > maxir) {
+      col = m - maxil;
+      i = lidx;
+    } else {
+      col = maxir + 1;
+      i = ridx;
+    }
+    for (; i >= 0; i--) {
+      if (lr[i] == 'R') {
+        col--;
+      } else {
+        col++;
+      }
+    }
+  }
+  if (ud.size() != 0) {
+    long long int i;
+    if (maxiu > maxid) {
+      row = n - maxiu;
+      i = uidx;
+    } else {
+      row = maxid + 1;
+      i = didx;
+    }
+    for (; i >= 0; i--) {
+      if (ud[i] == 'U') {
+        row++;
+      } else {
+        row--;
+      }
+    }
+  }
+  cout << row << " " << col << "\n";
+}
+int main() {
+  ios_base::sync_with_stdio(false);
+  cin.tie(NULL);
+  long long int t;
+  t = 1;
+  cin >> t;
+  for (long long int i = 1; i <= t; i++) {
+    answerNikalBc(t);
+  }
+  cerr << "time taken : " << (float)clock() / CLOCKS_PER_SEC << " secs" << endl;
+  return 0;
+}

@@ -1,0 +1,68 @@
+#include <bits/stdc++.h>
+void qry(int x, int y, int z) {
+  std::cout << "? " << x << ' ' << y << ' ' << z << '\n';
+  std::cout.flush();
+}
+void sol() {
+  int n;
+  std::cin >> n;
+  std::vector<int> a(n + 1, -1), tmp, res(n + 1, -1);
+  bool vis[2] = {false, false};
+  int imp = -1, crw = -1;
+  for (int i = 3; i <= n; ++i) {
+    qry(i - 2, i - 1, i);
+    std::cin >> a[i];
+    if (a[i] == 1)
+      imp = i;
+    else
+      crw = i;
+    if (crw != -1 && imp != -1) break;
+  }
+  int is0, is1;
+  if (imp < crw) {
+    is1 = imp - 2;
+    is0 = crw;
+  } else {
+    is1 = imp;
+    is0 = crw - 2;
+  }
+  res[is0] = 0;
+  res[is1] = 1;
+  for (int i : {1, 2, 3})
+    if (i != is0 && i != is1) {
+      qry(is0, is1, i);
+      std::cin >> res[i];
+    }
+  for (int i = 4; i < is0; ++i) {
+    if (res[i] == -1) res[i] = res[i - 3];
+  }
+  for (int i = is0; i <= n; ++i)
+    if (i != is0 && i != is1) {
+      tmp.push_back(i);
+    }
+  for (int e : tmp) {
+    qry(is0, is1, e);
+    std::cin >> res[e];
+  }
+  int ans = 0;
+  for (int i = 1; i <= n; ++i) {
+    if (!res[i]) ++ans;
+  }
+  std::cout << "! " << ans;
+  for (int i = 1; i <= n; ++i) {
+    if (!res[i]) std::cout << ' ' << i;
+  }
+  std::cout << '\n';
+  std::cout.flush();
+}
+int main() {
+  std::ios_base::sync_with_stdio(false);
+  std::cin.tie(0);
+  std::cout.tie(0);
+  int t;
+  std::cin >> t;
+  while (t--) {
+    sol();
+  }
+  return 0;
+}

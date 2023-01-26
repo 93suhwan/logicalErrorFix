@@ -1,0 +1,37 @@
+#include <bits/stdc++.h>
+using namespace std;
+const int mod = 1e9 + 7;
+int t, n, k;
+int64_t power(int64_t a, int64_t b) {
+  if (b == 0) return 1;
+  if (b % 2 == 0)
+    return power(a % mod * a % mod, b / 2);
+  else
+    return a % mod * power(a % mod * a % mod, (b - 1) / 2);
+}
+void solve() {
+  string s = "";
+  while (k > 0) {
+    if (k % 2 == 0)
+      s.insert(s.end(), '0');
+    else
+      s.insert(s.end(), '1');
+    k >>= 1;
+  }
+  int64_t ans = 0;
+  for (int i = 0; i < s.size(); i++) {
+    if (s[i] == '1') ans = (ans % mod + power(n, i)) % mod;
+  }
+  cout << ans << "\n";
+}
+int main() {
+  ios_base::sync_with_stdio(false);
+  cin.tie();
+  cout.tie();
+  cin >> t;
+  while (t--) {
+    cin >> n >> k;
+    solve();
+  }
+  return 0;
+}
