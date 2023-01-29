@@ -1,14 +1,10 @@
 __pycache__/
+*.pyc
 
 CodeBERT/
 code_contests/
-data/cppfiles_train/
-data/cppfiles_valid/
+data/cppfiles*
 data/origin_zip_files/
-data/edit_distance/pair_code_edit_dist_train.txt
-data/edit_distance/pair_solution_train.txt
-model/cpp/best_bleu_train/
-model/cpp/best_ppl_train/
-model/cpp/last_train/
-model/cpp/dev*
-model/cpp/checkpoint*
+data/edit_distance/pair_code*
+model/
+run.py.origin

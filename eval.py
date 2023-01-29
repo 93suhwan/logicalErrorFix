@@ -16,7 +16,7 @@ def main():
   logger.info(args)
 
   src = './' + DIR + LANG + args.FILE
-  total, fault, acc = 0, 0, 0
+  total, fault, same = 0, 0, 0
   
   with open(src + '.gold', 'r') as gold, open(src + '.output', 'r') as out:
     for gold_line, out_line in zip(gold, out):
@@ -29,11 +29,11 @@ def main():
       if gold_list[1] == out_list[1]:
         fault += 1
         if ' '.join(gold_list[0:]).strip() == ' '.join(out_list[0:]).strip():
-          acc += 1
+          same += 1
   
   
-  print("total = {}, fault = {}, acc = {}".format(total, fault, acc))
-  print("total = {}, fault = {:.2f}, acc = {:.2f}".format(total, float(fault)/total, float(acc)/total))
+  print("total = {}, fault = {}, same = {}".format(total, fault, same))
+  print("total = {}, fault = {:.2f}, same = {:.2f}".format(total, float(fault)/total, float(same)/total))
 
 if __name__== "__main__":
   main()
