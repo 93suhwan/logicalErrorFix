@@ -1,5 +1,5 @@
 # logicalErrorFix
-![LEFix](./figure/LeFix.png?row=true)
+![LEFix](./figure/LEFix.png?row=true)
 
 # Download and make a dataset
 참고: https://github.com/deepmind/code_contests
