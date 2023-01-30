@@ -35,9 +35,9 @@ def load_code(dataFrame, data_loc=''):
           if stmt is not None:
             continue
           elif lIdx < len(cLines) and lIdx >= len(iLines):
-            stmt = iLines[lIdx]
-          elif lIdx < len(iLines) and lIdx >= len(cLines):
             stmt = cLines[lIdx]
+          elif lIdx < len(iLines) and lIdx >= len(cLines):
+            stmt = ' '
           elif cLines[lIdx] != iLines[lIdx]:
             stmt = cLines[lIdx]
             if lIdx + 1 < len(iLines): # if a delete statement exists.
