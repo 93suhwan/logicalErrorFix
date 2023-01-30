@@ -16,7 +16,7 @@ def load_code(dataFrame, data_loc=''):
 
   for idx, cont in dataFrame.iterrows():
     if idx % 5000 == 0:
-      print('Current index = ', idx)
+      print('Current index =', idx)
     if dataFrame.at[idx, 'Editdist'] > THRESHOLD or dataFrame.at[idx, 'Editdist'] == 0:
       dataFrame = dataFrame.drop(idx)
     else:
@@ -32,16 +32,17 @@ def load_code(dataFrame, data_loc=''):
             cCodeWithLine.append(str(lIdx + 1) + ' ' + cLines[lIdx])
           if lIdx < len(iLines):
             iCodeWithLine.append(str(lIdx + 1) + ' ' + iLines[lIdx])
-          print()
-          print('./data/cppfiles_' + data_loc + '/' + str(cont[COLUMNS[0]]) + COLUMNS[1][0] + str(cont[COLUMNS[1]]) + '.cpp')
-          print('./data/cppfiles_' + data_loc + '/' + str(cont[COLUMNS[0]]) + COLUMNS[2][0] + str(cont[COLUMNS[2]]) + '.cpp')
           if stmt is not None:
             continue
+          elif lIdx < len(cLines) and lIdx >= len(iLines):
+            stmt = iLines[lIdx]
+          elif lIdx < len(iLines) and lIdx >= len(cLines):
+            stmt = cLines[lIdx]
           elif cLines[lIdx] != iLines[lIdx]:
+            stmt = cLines[lIdx]
             if lIdx + 1 < len(iLines): # if a delete statement exists.
               if cLines[lIdx] == iLines[lIdx + 1]:
                 stmt = ' '
-            stmt = cLines[lIdx]
         corr.close()
         incorr.close()
         dataFrame.at[idx, 'Correct_code'] = cCodeWithLine
@@ -55,9 +56,9 @@ def load_code(dataFrame, data_loc=''):
 def main():
   DIR = './data/edit_distance/'
   for fileType in FILETYPE:
-    print('Creating ' + fileType + ' pairs.')
+    print('Creating ' + fileType + 'data pairs')
     pairedData = pd.read_csv(DIR + '/pair_solution_' + fileType + '.txt', sep='\t', names=COLUMNS)
-    print('Data length = ', len(pairedData))
+    print('Data length   =', len(pairedData))
     load_code(pairedData, fileType).to_csv(DIR + 'pair_code_edit_dist_' + fileType + '.txt', sep='\t', index=False)
 
 if __name__ == "__main__":
