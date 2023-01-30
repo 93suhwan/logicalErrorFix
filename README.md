@@ -25,24 +25,24 @@ Install [bazel](https://docs.bazel.build/versions/main/install.html) and [Cloud 
 >> bazel run -c opt \
   :convert_riegeli2cpp /tmp/dm-code_contests/*
 
-  >> cd ..
+>> cd ..
 
-  >> python make_code_edit_dist.py
-  ```
+>> python make_code_edit_dist.py
+```
 
-  # Train & eval model
+# Train & eval model
 
-  ```bash
-  >> ./train.sh
+```bash
+>> ./train.sh
 
-  # test_file 변수를 바꿔서 데이터 변경
-  # test_model 변수를 바꿔서 모델 변경
-  >> ./eval.sh
+# test_file 변수를 바꿔서 데이터 변경
+# test_model 변수를 바꿔서 모델 변경
+>> ./eval.sh
 
-  >> python --FILE test_0
-  # total = ???, fault = ???, same == ???
-  # total = ???, fault = fault/total, same/total
-  ```
+>> python --FILE test_0
+# total = ???, fault = ???, same == ???
+# total = ???, fault = fault/total, same/total
+```
 
   # Process
   1. Single(이하 S) CodeBERT + Transformer(6 Layers, 이하 6L) *curr.
