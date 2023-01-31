@@ -1,12 +1,11 @@
 import pandas as pd
-import numpy as np
 from io import open
 
 COLUMNS = ['PID', 'Correct', 'Incorrect', 'Editdist']
 FILETYPE = ['train', 'valid', 'test']
 THRESHOLD = 2
 
-def load_code(dataFrame, data_loc=''):
+def load_code(dataFrame, dataType=''):
   dataFrame['Correct_code'] = ''
   dataFrame['Incorrect_code'] = ''
   dataFrame['Statement'] = ''
@@ -16,33 +15,33 @@ def load_code(dataFrame, data_loc=''):
 
   for idx, cont in dataFrame.iterrows():
     if idx % 5000 == 0:
-      print('Current index =', idx)
+      print('Current index = {}'.format(idx))
     if dataFrame.at[idx, 'Editdist'] > THRESHOLD or dataFrame.at[idx, 'Editdist'] == 0:
       dataFrame = dataFrame.drop(idx)
     else:
-      with open('./data/cppfiles_' + data_loc + '/' + str(cont[COLUMNS[0]]) + COLUMNS[1][0] + str(cont[COLUMNS[1]]) + '.cpp', 'r') as corr, open('./data/cppfiles_' + data_loc + '/' + str(cont[COLUMNS[0]]) + COLUMNS[2][0] + str(cont[COLUMNS[2]]) + '.cpp', 'r') as incorr:
+      with open('./data/cppfiles_' + dataType + '/' + str(cont[COLUMNS[0]]) + COLUMNS[1][0] + str(cont[COLUMNS[1]]) + '.cpp', 'r') as corr, open('./data/cppfiles_' + dataType + '/' + str(cont[COLUMNS[0]]) + COLUMNS[2][0] + str(cont[COLUMNS[2]]) + '.cpp', 'r') as incorr:
         cLines = corr.readlines()
         iLines = incorr.readlines()
 
-        cCodeWithLine = []
-        iCodeWithLine = []
+        cCodeWithLine = ''
+        iCodeWithLine = ''
         stmt = None
         for lIdx in range(max(len(cLines), len(iLines))):
           if lIdx < len(cLines):
-            cCodeWithLine.append(str(lIdx + 1) + ' ' + cLines[lIdx])
+            cCodeWithLine += (str(lIdx + 1) + ' ' + cLines[lIdx].strip() + '||| ')
           if lIdx < len(iLines):
-            iCodeWithLine.append(str(lIdx + 1) + ' ' + iLines[lIdx])
+            iCodeWithLine += (str(lIdx + 1) + ' ' + iLines[lIdx].strip() + '||| ')
           if stmt is not None:
             continue
           elif lIdx < len(cLines) and lIdx >= len(iLines):
-            stmt = cLines[lIdx]
+            stmt = str(lIdx + 1) + ' ' + cLines[lIdx].strip()
           elif lIdx < len(iLines) and lIdx >= len(cLines):
-            stmt = ' '
+            stmt = str(lIdx + 1) + ' '
           elif cLines[lIdx] != iLines[lIdx]:
-            stmt = cLines[lIdx]
+            stmt = str(lIdx + 1) + ' ' + cLines[lIdx].strip()
             if lIdx + 1 < len(iLines): # if a delete statement exists.
               if cLines[lIdx] == iLines[lIdx + 1]:
-                stmt = ' '
+                stmt = str(lIdx + 1) + ' '
         corr.close()
         incorr.close()
         dataFrame.at[idx, 'Correct_code'] = cCodeWithLine
@@ -55,10 +54,11 @@ def load_code(dataFrame, data_loc=''):
   
 def main():
   DIR = './data/edit_distance/'
+
   for fileType in FILETYPE:
-    print('Creating ' + fileType + 'data pairs')
-    pairedData = pd.read_csv(DIR + '/pair_solution_' + fileType + '.txt', sep='\t', names=COLUMNS)
-    print('Data length   =', len(pairedData))
+    print('Creating {} data pairs'.format(fileType))
+    pairedData = pd.read_csv(DIR + 'pair_solution_' + fileType + '.txt', sep='\t', names=COLUMNS)
+    print('Data length   = {}'.format(len(pairedData)))
     load_code(pairedData, fileType).to_csv(DIR + 'pair_code_edit_dist_' + fileType + '.txt', sep='\t', index=False)
 
 if __name__ == "__main__":
