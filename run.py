@@ -65,12 +65,9 @@ def read_examples(filename):
   examples = []
   data = pd.read_csv(filename, sep='\t', header=[0]).drop(columns=COLUMNS[0])
   for idx, elem in data.iterrows():
-    code = ' '.join(elem[COLUMNS[1]].lstrip("[""'").rstrip("]""'").replace('\\n', ' ').split("', '"))
-    code = ' '.join(code.strip().split())
-    # above or below
-    # code = elem[COLUMNS[1]].lstrip("[""'").rstrip("]""'").replace('\\n', ' ')
-    stmt = elem[COLUMNS[2]].replace('\n', '')
-    stmt = ' '.join(stmt.strip().split())
+    code = ' '.join(elem[COLUMNS[1]].split('||| '))[:-1].strip()
+    stmt = elem[COLUMNS[2]].strip()
+
     examples.append(
       Example(
               idx = idx,
@@ -95,69 +92,6 @@ class InputFeatures(object):
         self.target_ids = target_ids
         self.source_mask = source_mask
         self.target_mask = target_mask       
-        
-'''
-def convert_examples_to_features(examples, tokenizer, args,stage=None):
-    features = []
-    for example_index, example in enumerate(examples):
-        #source
-        source_tokens = [tokenizer.cls_token]
-        for elem in example.source.split("', '"):
-            source_tokens += tokenizer.tokenize(elem.strip()) + [tokenizer.sep_token]
-            if len(source_tokens) > args.max_source_length:
-                break
-        source_ids =  tokenizer.convert_tokens_to_ids(source_tokens) 
-        source_mask = [1] * (len(source_tokens))
-        padding_length = args.max_source_length - len(source_ids)
-        source_ids+=[tokenizer.pad_token_id]*padding_length
-        source_mask+=[0]*padding_length
-        if len(source_ids) > args.max_source_length:
-            source_ids=source_ids[:args.max_source_length]
-            source_mask=source_ids[:args.max_source_length]
- 
-        #target
-        target_tokens = [tokenizer.cls_token]
-        if stage=="test":
-            target_tokens += tokenizer.tokenize("None") + [tokenizer.sep_token]
-        else:
-            for elem in example.target.split("', '"):
-                target_tokens += tokenizer.tokenize(elem.strip()) + [tokenizer.sep_token]
-                if len(target_tokens) > args.max_target_length:
-                    break
-        target_ids = tokenizer.convert_tokens_to_ids(target_tokens)
-        target_mask = [1] *len(target_ids)
-        padding_length = args.max_target_length - len(target_ids)
-        target_ids+=[tokenizer.pad_token_id]*padding_length
-        target_mask+=[0]*padding_length   
-        if len(target_ids) > args.max_target_length:
-            target_ids=target_ids[:args.max_target_length]
-            target_mask=target_mask[:args.max_target_length]
-   
-        if example_index < 5:
-            ##NNNN
-            if stage=='train1':
-                logger.info("*** Example ***")
-                logger.info("idx: {}".format(example.idx))
-
-                logger.info("source_tokens: {}".format([x.replace('\u0120','_') for x in source_tokens]))
-                logger.info("source_ids: {}".format(' '.join(map(str, source_ids))))
-                logger.info("source_mask: {}".format(' '.join(map(str, source_mask))))
-                
-                logger.info("target_tokens: {}".format([x.replace('\u0120','_') for x in target_tokens]))
-                logger.info("target_ids: {}".format(' '.join(map(str, target_ids))))
-                logger.info("target_mask: {}".format(' '.join(map(str, target_mask))))
-       
-        features.append(
-            InputFeatures(
-                 example_index,
-                 source_ids,
-                 target_ids,
-                 source_mask,
-                 target_mask,
-            )
-        )
-    return features
-'''
 
 def convert_examples_to_features(examples, tokenizer, args,stage=None):
     features = []
