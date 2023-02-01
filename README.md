@@ -41,7 +41,7 @@ Install [bazel](https://docs.bazel.build/versions/main/install.html) and [Cloud 
 
 >> python --FILE test_0
 # total = ???, fault = ???, same == ???
-# total = ???, fault = fault/total, same/total
+# total = ???, fault = fault/total, same = same/total
 ```
 
   # Process
