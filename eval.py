@@ -5,17 +5,21 @@ from io import open
 logger = logging.getLogger(__name__)
 
 DIR='model/'
-LANG='cpp/'
+LANG='cpp'
 
 def main():
   parser = argparse.ArgumentParser()
 
-  parser.add_argument("--FILE", default=None, type=str, required=True,
+  parser.add_argument("--file", default=None, type=str, required=True,
                       help="File name: dev, test_0, ...")
+  parser.add_argument("--trainType", default=None, type=str, required=True,
+                      help="Train type: line, line_desc, line_desc_sample, ...")
+  parser.add_argument("--model", default=None, type=str, required=True,
+                      help="Train type: best-bleu, best-ppl, last")
   args = parser.parse_args()
   logger.info(args)
 
-  src = './' + DIR + LANG + args.FILE
+  src = './' + DIR + LANG + '_' + args.trainType + '/checkpoint-' + args.model + '/'  + args.file
   total, fault, same = 0, 0, 0
   
   with open(src + '.gold', 'r') as gold, open(src + '.output', 'r') as out:

@@ -502,13 +502,15 @@ def main():
                         p.append(text)
             model.train()
             predictions=[]
-            with open(os.path.join(args.output_dir,"test_{}.output".format(str(idx))),'w') as f, open(os.path.join(args.output_dir,"test_{}.gold".format(str(idx))),'w') as f1:
+            modelName = args.load_model_path.split('/')[-2]
+            fileName = args.test_filename.split('_')[-1].split('.')[0]
+            with open(os.path.join(args.output_dir + '/' + modelName, fileName + "_{}.output".format(str(idx))),'w') as f, open(os.path.join(args.output_dir + '/' + modelName, fileName + "_{}.gold".format(str(idx))),'w') as f1:
                 for ref,gold in zip(p,eval_examples):
                     predictions.append(str(gold.idx)+'\t'+ref)
                     f.write(str(gold.idx)+'\t'+ref+'\n')
                     f1.write(str(gold.idx)+'\t'+gold.target+'\n')     
 
-            (goldMap, predictionMap) = bleu.computeMaps(predictions, os.path.join(args.output_dir, "test_{}.gold".format(idx))) 
+            (goldMap, predictionMap) = bleu.computeMaps(predictions, os.path.join(args.output_dir + '/' + modelName, fileName + "_{}.gold".format(idx)))
             dev_bleu=round(bleu.bleuFromMaps(goldMap, predictionMap)[0],2)
             logger.info("  %s = %s "%("bleu-4",str(dev_bleu)))
             logger.info("  "+"*"*20)    
