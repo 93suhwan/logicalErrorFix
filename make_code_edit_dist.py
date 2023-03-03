@@ -6,12 +6,10 @@ FILETYPE = ['train', 'valid', 'test']
 THRESHOLD = 2
 
 def load_code(dataFrame, dataType=''):
+  dataFrame['IID'] = ''
   dataFrame['Correct_code'] = ''
   dataFrame['Incorrect_code'] = ''
   dataFrame['Statement'] = ''
-  # dataFrame['Description'] = ''
-  # dataFrame['Input'] = ''
-  # dataFrame['Output'] = ''
 
   for idx, cont in dataFrame.iterrows():
     if idx % 5000 == 0:
@@ -44,11 +42,12 @@ def load_code(dataFrame, dataType=''):
                 stmt = str(lIdx + 1) + ' '
         corr.close()
         incorr.close()
+        dataFrame.at[idx, 'IID'] = cont[COLUMNS[1]]
         dataFrame.at[idx, 'Correct_code'] = cCodeWithLine
         dataFrame.at[idx, 'Incorrect_code'] = iCodeWithLine
         dataFrame.at[idx, 'Statement'] = stmt
 
-  dataFrame.drop(columns=COLUMNS, inplace=True)
+  dataFrame.drop(columns=COLUMNS[1:], inplace=True)
 
   return dataFrame
   
