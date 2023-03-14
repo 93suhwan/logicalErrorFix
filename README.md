@@ -20,6 +20,8 @@ Install [bazel](https://docs.bazel.build/versions/main/install.html) and [Cloud 
 
 >> bazel build -c opt :print_names_and_sources
 
+>> cat ../BUILD >> ./BUILD
+
 >> gsutil -m cp -r gs://dm-code_contests /tmp
 
 >> bazel run -c opt \

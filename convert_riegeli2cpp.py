@@ -30,12 +30,12 @@ def make_cpp_files(filenames, fileType):
     for correct_id, correct in enumerate(problem.solutions):
       if correct.language==2:
         with open(DIR + 'cppfiles' + fileType + '/' + str(program_id) + 'C' + str(correct_id) + '.cpp', 'w') as corrFile:
-        corrFile.write(correct.solution)
+          corrFile.write(correct.solution)
 
     for incorrect_id, incorrect in enumerate(problem.incorrect_solutions):
       if incorrect.language==2:
         with open(DIR + 'cppfiles' + fileType + '/' + str(program_id) + 'I' + str(incorrect_id) + '.cpp', 'w') as incorrFile:
-        incorrFile.write(incorrect.solution)
+          incorrFile.write(incorrect.solution)
 
     with open(DIR + 'descriptions' + fileType + '/' + str(program_id) + '.txt', 'w') as descFile:
       descFile.write(problem.description)
