@@ -21,14 +21,12 @@ using a masked language modeling (MLM) loss.
 
 from __future__ import absolute_import
 import os
-import sys
 import bleu
-import pickle
 import torch
-import json
 import random
 import logging
 import argparse
+import pandas as pd
 import numpy as np
 from io import open
 from itertools import cycle
@@ -38,8 +36,13 @@ from tqdm import tqdm, trange
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler,TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from transformers import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
-                          RobertaConfig, RobertaModel, RobertaTokenizer)
-MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
+                          RobertaConfig, RobertaModel, RobertaTokenizer,
+                          BigBirdConfig, BigBirdModel, BigBirdTokenizer)
+
+MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer),
+                 'bigbird': (BigBirdConfig, BigBirdModel, BigBirdTokenizer),}
+
+COLUMNS = ['PID', 'IID', 'Correct_code', 'Incorrect_code', 'Statement']
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -51,27 +54,42 @@ class Example(object):
     def __init__(self,
                  idx,
                  source,
+                 description,
+                 samples,
                  target,
                  ):
         self.idx = idx
         self.source = source
+        self.description = description
+        self.samples = samples
         self.target = target
-
-import pandas as pd
-COLUMNS = ['Correct_code', 'Incorrect_code', 'Statement']
 
 def read_examples(filename):
   """Read examples from filename for DeepFix style training Line stmt Line stmt Line stmt ..."""
   examples = []
-  data = pd.read_csv(filename, sep='\t', header=[0]).drop(columns=COLUMNS[0])
+  data = pd.read_csv(filename, sep='\t', header=[0]).drop(columns=COLUMNS[2])
+  index = -1
+  description = None
+  samples = None
+
   for idx, elem in data.iterrows():
-    code = ' '.join(elem[COLUMNS[1]].split('||| '))[:-1].strip()
-    stmt = elem[COLUMNS[2]].strip()
+    code = ' '.join(elem[COLUMNS[3]].split('||| '))[:-1].strip()
+    stmt = elem[COLUMNS[4]].strip()
+
+    if index != elem[COLUMNS[0]]:
+      index = elem[COLUMNS[0]]
+
+    mode = filename.split('/')[-1].split('.')[0].split('_')[-1]
+    with open('./data/descriptions_' + mode + '/' + str(index) + '.txt', 'r') as desc_file, open('./data/samples_' + mode + '/' + str(index) + '.txt', 'r') as samples_file:
+      description = ' '.join(desc_file.read().replace('\n', ' ').split())
+      samples = ' '.join(samples_file.read().replace('\n', ' ').split())
 
     examples.append(
       Example(
               idx = idx,
               source = code,
+              description = description,
+              samples = samples,
               target = stmt,
               )
     )
@@ -82,18 +100,26 @@ class InputFeatures(object):
     def __init__(self,
                  example_id,
                  source_ids,
+                 description_ids,
+                 samples_ids,
                  target_ids,
                  source_mask,
+                 description_mask,
+                 samples_mask,
                  target_mask,
 
     ):
         self.example_id = example_id
         self.source_ids = source_ids
+        self.description_ids = description_ids
+        self.samples_ids = samples_ids
         self.target_ids = target_ids
         self.source_mask = source_mask
-        self.target_mask = target_mask       
+        self.description_mask = description_mask
+        self.samples_mask = samples_mask
+        self.target_mask = target_mask
 
-def convert_examples_to_features(examples, tokenizer, args,stage=None):
+def convert_examples_to_features(examples, tokenizer, b_tokenizer, args,stage=None):
     features = []
     for example_index, example in enumerate(examples):
         #source
@@ -104,6 +130,26 @@ def convert_examples_to_features(examples, tokenizer, args,stage=None):
         padding_length = args.max_source_length - len(source_ids)
         source_ids+=[tokenizer.pad_token_id]*padding_length
         source_mask+=[0]*padding_length
+
+        #description
+        description_tokens = b_tokenizer.tokenize(example.description)[:4096-2]
+        description_tokens = [b_tokenizer.cls_token]+description_tokens+[b_tokenizer.sep_token]
+        description_ids = b_tokenizer.convert_tokens_to_ids(description_tokens)
+        description_mask = [1] * (len(description_tokens))
+        padding_length = 4096 - len(description_ids)
+        description_ids+=[b_tokenizer.pad_token_id]*padding_length
+        description_mask+=[0]*padding_length
+
+        #sample
+        #samples_tokens = s_tokenizer.tokenize(example.samples)[:4096-2]
+        #samples_tokens = [s_tokenizer.cls_token]+samples_tokens+[s_tokenizer.sep_token]
+        #samples_ids = s_tokenizer.convert_tokens_to_ids(samples_tokens)
+        #samples_mask = [1] * (len(samples_tokens))
+        #padding_length = args.max_source_length - len(samples_ids)
+        #samples_ids+=[s_tokenizer.pad_token_id]*padding_length
+        #samples_mask+=[0]*padding_length
+        samples_ids = None
+        samples_mask = None
  
         #target
         if stage=="test":
@@ -135,8 +181,12 @@ def convert_examples_to_features(examples, tokenizer, args,stage=None):
             InputFeatures(
                  example_index,
                  source_ids,
+                 description_ids,
+                 samples_ids,
                  target_ids,
                  source_mask,
+                 description_mask,
+                 samples_mask,
                  target_mask,
             )
         )
@@ -247,15 +297,23 @@ def main():
     if os.path.exists(args.output_dir) is False:
         os.makedirs(args.output_dir)
         
+    # CodeBERT
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
     tokenizer = tokenizer_class.from_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,do_lower_case=args.do_lower_case)
     
+    # BigBird
+    b_config_class, b_model_class, b_tokenizer_class = MODEL_CLASSES['bigbird']
+    b_config = b_config_class.from_pretrained('google/bigbird-roberta-base')
+    b_tokenizer = b_tokenizer_class.from_pretrained('google/bigbird-roberta-base',do_lower_case=args.do_lower_case)
+
     #budild model
-    encoder = model_class.from_pretrained(args.model_name_or_path,config=config)    
+    encoder1 = model_class.from_pretrained(args.model_name_or_path,config=config)
+    encoder2 = b_model_class.from_pretrained('google/bigbird-roberta-base',config=b_config)
+
     decoder_layer = nn.TransformerDecoderLayer(d_model=config.hidden_size, nhead=config.num_attention_heads)
     decoder = nn.TransformerDecoder(decoder_layer, num_layers=6)
-    model=Seq2Seq(encoder=encoder,decoder=decoder,config=config,
+    model=Seq2Seq(encoder1=encoder1,encoder2=encoder2,decoder=decoder,config=config,
                   beam_size=args.beam_size,max_length=args.max_target_length,
                   sos_id=tokenizer.cls_token_id,eos_id=tokenizer.sep_token_id)
     if args.load_model_path is not None:
@@ -282,12 +340,24 @@ def main():
     if args.do_train:
         # Prepare training data loader
         train_examples = read_examples(args.train_filename)
-        train_features = convert_examples_to_features(train_examples, tokenizer,args,stage='train')
+        train_features = convert_examples_to_features(train_examples, tokenizer, b_tokenizer, args,stage='train')
         all_source_ids = torch.tensor([f.source_ids for f in train_features], dtype=torch.long)
         all_source_mask = torch.tensor([f.source_mask for f in train_features], dtype=torch.long)
+        all_description_ids = torch.tensor([f.description_ids for f in train_features], dtype=torch.long)
+        all_description_mask = torch.tensor([f.description_mask for f in train_features], dtype=torch.long)
+        #all_samples_ids = torch.tensor([f.samples_ids for f in train_features], dtype=torch.long)
+        #all_samples_mask = torch.tensor([f.samples_mask for f in train_features], dtype=torch.long)
+        all_samples_ids = None
+        all_samples_mask = None
         all_target_ids = torch.tensor([f.target_ids for f in train_features], dtype=torch.long)
         all_target_mask = torch.tensor([f.target_mask for f in train_features], dtype=torch.long)    
-        train_data = TensorDataset(all_source_ids,all_source_mask,all_target_ids,all_target_mask)
+        train_data = TensorDataset(all_source_ids,all_source_mask,
+                                   all_description_ids,all_description_mask,
+                                   all_target_ids,all_target_mask)
+        #train_data = TensorDataset(all_source_ids,all_source_mask,
+        #                           all_description_ids,all_description_mask,
+        #                           all_samples_ids,all_samples_mask,
+        #                           all_target_ids,all_target_mask)
         
         if args.local_rank == -1:
             train_sampler = RandomSampler(train_data)
@@ -325,8 +395,12 @@ def main():
         for step in bar:
             batch = next(train_dataloader)
             batch = tuple(t.to(device) for t in batch)
-            source_ids,source_mask,target_ids,target_mask = batch
-            loss,_,_ = model(source_ids=source_ids,source_mask=source_mask,target_ids=target_ids,target_mask=target_mask)
+            #source_ids,source_mask,description_ids,description_mask,samples_ids,samples_mask,target_ids,target_mask = batch
+            source_ids,source_mask,description_ids,description_mask,target_ids,target_mask = batch
+            loss,_,_ = model(source_ids=source_ids,source_mask=source_mask,
+                             description_ids=description_ids,description_mask=description_mask,
+                             samples_ids=None,samples_mask=None,
+                             target_ids=target_ids,target_mask=target_mask)
             
             if args.n_gpu > 1:
                 loss = loss.mean() # mean() to average on multi-gpu.
@@ -356,12 +430,22 @@ def main():
                     eval_examples,eval_data=dev_dataset['dev_loss']
                 else:
                     eval_examples = read_examples(args.dev_filename)
-                    eval_features = convert_examples_to_features(eval_examples, tokenizer, args,stage='dev')
+                    eval_features = convert_examples_to_features(eval_examples, tokenizer, b_tokenizer, args,stage='dev')
                     all_source_ids = torch.tensor([f.source_ids for f in eval_features], dtype=torch.long)
                     all_source_mask = torch.tensor([f.source_mask for f in eval_features], dtype=torch.long)
+                    all_description_ids = torch.tensor([f.description_ids for f in eval_features], dtype=torch.long)
+                    all_description_mask = torch.tensor([f.description_mask for f in eval_features], dtype=torch.long)
+                    #all_samples_ids = torch.tensor([f.samples_ids for f in eval_features], dtype=torch.long)
+                    #all_samples_mask = torch.tensor([f.samples_mask for f in eval_features], dtype=torch.long)
                     all_target_ids = torch.tensor([f.target_ids for f in eval_features], dtype=torch.long)
                     all_target_mask = torch.tensor([f.target_mask for f in eval_features], dtype=torch.long)      
-                    eval_data = TensorDataset(all_source_ids,all_source_mask,all_target_ids,all_target_mask)   
+                    eval_data = TensorDataset(all_source_ids,all_source_mask,
+                                              all_description_ids,all_description_mask,
+                                              all_target_ids,all_target_mask)   
+                    #eval_data = TensorDataset(all_source_ids,all_source_mask,
+                    #                          all_description_ids,all_description_mask,
+                    #                          all_samples_ids,all_samples_mask,
+                    #                          all_target_ids,all_target_mask)   
                     dev_dataset['dev_loss']=eval_examples,eval_data
                 eval_sampler = SequentialSampler(eval_data)
                 eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
@@ -375,10 +459,13 @@ def main():
                 eval_loss,tokens_num = 0,0
                 for batch in eval_dataloader:
                     batch = tuple(t.to(device) for t in batch)
-                    source_ids,source_mask,target_ids,target_mask = batch                  
+                    source_ids,source_mask,description_ids,description_mask,target_ids,target_mask = batch                  
+                    #source_ids,source_mask,description_ids,description_mask,samples_ids,samples_mask,target_ids,target_mask = batch                  
 
                     with torch.no_grad():
                         _,loss,num = model(source_ids=source_ids,source_mask=source_mask,
+                                           description_ids=description_ids,description_mask=description_mask,
+                                           samples_ids=None,samples_mask=None,
                                            target_ids=target_ids,target_mask=target_mask)     
                     eval_loss += loss.sum().item()
                     tokens_num += num.sum().item()
@@ -418,10 +505,20 @@ def main():
                 else:
                     eval_examples = read_examples(args.dev_filename)
                     eval_examples = random.sample(eval_examples,min(1000,len(eval_examples)))
-                    eval_features = convert_examples_to_features(eval_examples, tokenizer, args,stage='test')
+                    eval_features = convert_examples_to_features(eval_examples, tokenizer, b_tokenizer, args,stage='test')
                     all_source_ids = torch.tensor([f.source_ids for f in eval_features], dtype=torch.long)
                     all_source_mask = torch.tensor([f.source_mask for f in eval_features], dtype=torch.long)    
-                    eval_data = TensorDataset(all_source_ids,all_source_mask)   
+                    all_description_ids = torch.tensor([f.description_ids for f in eval_features], dtype=torch.long)
+                    all_description_mask = torch.tensor([f.description_mask for f in eval_features], dtype=torch.long)
+                    #all_samples_ids = torch.tensor([f.samples_ids for f in eval_features], dtype=torch.long)
+                    #all_samples_mask = torch.tensor([f.samples_mask for f in eval_features], dtype=torch.long)
+                    all_samples_ids = None
+                    all_samples_mask = None
+                    eval_data = TensorDataset(all_source_ids,all_source_mask,
+                                              all_description_ids,all_description_mask)
+                    #eval_data = TensorDataset(all_source_ids,all_source_mask,
+                    #                          all_description_ids,all_description_mask,
+                    #                          all_samples_ids,all_samples_mask)   
                     dev_dataset['dev_bleu']=eval_examples,eval_data
 
 
@@ -433,9 +530,12 @@ def main():
                 p=[]
                 for batch in eval_dataloader:
                     batch = tuple(t.to(device) for t in batch)
-                    source_ids,source_mask= batch                  
+                    source_ids,source_mask,description_ids,description_mask= batch                  
+                    #source_ids,source_mask,description_ids,description_mask,samples_ids,samples_mask= batch                  
                     with torch.no_grad():
-                        preds = model(source_ids=source_ids,source_mask=source_mask)  
+                        preds = model(source_ids=source_ids,source_mask=source_mask,
+                                      description_ids=description_ids,description_mask=description_mask,
+                                      samples_ids=None,samples_mask=None)  
                         for pred in preds:
                             t=pred[0].cpu().numpy()
                             t=list(t)
@@ -477,10 +577,20 @@ def main():
         for idx,file in enumerate(files):   
             logger.info("Test file: {}".format(file))
             eval_examples = read_examples(file)
-            eval_features = convert_examples_to_features(eval_examples, tokenizer, args,stage='test')
+            eval_features = convert_examples_to_features(eval_examples, tokenizer, b_tokenizer, args,stage='test')
             all_source_ids = torch.tensor([f.source_ids for f in eval_features], dtype=torch.long)
             all_source_mask = torch.tensor([f.source_mask for f in eval_features], dtype=torch.long)    
-            eval_data = TensorDataset(all_source_ids,all_source_mask)   
+            all_description_ids = torch.tensor([f.description_ids for f in eval_features], dtype=torch.long)
+            all_description_mask = torch.tensor([f.description_mask for f in eval_features], dtype=torch.long)
+            #all_samples_ids = torch.tensor([f.samples_ids for f in eval_features], dtype=torch.long)
+            #all_samples_mask = torch.tensor([f.samples_mask for f in eval_features], dtype=torch.long)
+            all_samples_ids = None
+            all_samples_mask = None
+            eval_data = TensorDataset(all_source_ids,all_source_mask,
+                                      all_description_ids,all_description_mask)
+            #eval_data = TensorDataset(all_source_ids,all_source_mask,
+            #                          all_description_ids,all_description_mask,
+            #                          all_samples_ids,all_samples_mask)   
 
             # Calculate bleu
             eval_sampler = SequentialSampler(eval_data)
@@ -490,9 +600,12 @@ def main():
             p=[]
             for batch in tqdm(eval_dataloader,total=len(eval_dataloader)):
                 batch = tuple(t.to(device) for t in batch)
-                source_ids,source_mask= batch                  
+                source_ids,source_mask,description_ids,description_mask= batch                  
+                #source_ids,source_mask,description_ids,description_mask,samples_ids,samples_mask= batch                  
                 with torch.no_grad():
-                    preds = model(source_ids=source_ids,source_mask=source_mask)  
+                    preds = model(source_ids=source_ids,source_mask=source_mask,
+                                  description_ids=description_ids,description_mask=description_mask,
+                                  samples_ids=None,samples_mask=None)  
                     for pred in preds:
                         t=pred[0].cpu().numpy()
                         t=list(t)

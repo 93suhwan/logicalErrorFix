@@ -1,8 +1,8 @@
 #!/bin/bash
 
-lang=cpp #programming language
+lang=cpp_epoch #programming language
 lr=5e-5
-batch_size=60
+batch_size=4
 beam_size=10
 source_length=512
 target_length=64
