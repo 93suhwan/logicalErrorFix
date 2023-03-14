@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch
+import numpy as np
 from torch.autograd import Variable
 import copy
 class Seq2Seq(nn.Module):
@@ -20,13 +21,15 @@ class Seq2Seq(nn.Module):
         * `sos_id`- start of symbol ids in target for beam search.
         * `eos_id`- end of symbol ids in target for beam search. 
     """
-    def __init__(self, encoder,decoder,config,beam_size=None,max_length=None,sos_id=None,eos_id=None):
+    def __init__(self, encoder1, encoder2, decoder,config,beam_size=None,max_length=None,sos_id=None,eos_id=None):
         super(Seq2Seq, self).__init__()
-        self.encoder = encoder
+        self.encoder1 = encoder1
+        self.encoder2 = encoder2
         self.decoder=decoder
         self.config=config
         self.register_buffer("bias", torch.tril(torch.ones(2048, 2048)))
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.denseForCat = nn.Linear(config.max_position_embeddings - 2 + 4096 , config.max_position_embeddings - 2)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.lsm = nn.LogSoftmax(dim=-1)
         self.tie_weights()
@@ -49,14 +52,19 @@ class Seq2Seq(nn.Module):
             Export to TorchScript can't handle parameter sharing so we are cloning them instead.
         """
         self._tie_or_clone_weights(self.lm_head,
-                                   self.encoder.embeddings.word_embeddings)        
+                                   self.encoder1.embeddings.word_embeddings)        
         
-    def forward(self, source_ids=None,source_mask=None,target_ids=None,target_mask=None,args=None):   
-        outputs = self.encoder(source_ids, attention_mask=source_mask)
-        encoder_output = outputs[0].permute([1,0,2]).contiguous()
+    def forward(self, source_ids=None,source_mask=None,description_ids=None, description_mask=None,samples_ids=None,samples_mask=None,target_ids=None,target_mask=None,args=None):   
+        output1 = self.encoder1(source_ids, attention_mask=source_mask)
+        output2 = self.encoder2(description_ids, attention_mask=description_mask)
+        #outputs.append(self.encoder[2](samples_ids, attention_mask=samples_mask))
+        #encoder_output = outputs[0].permute([1,0,2]).contiguous()
+        output = torch.cat([output1[0], output2[0]], dim=1).permute([0,2,1]).contiguous()
+        encoder_output = self.denseForCat(output).permute([2,0,1]).contiguous()
+        #encoder_output=self.denseForCat(torch.cat([output1[0], output2[0]], dim=1).permute([0,2,1]).contiguous()).permute([0,2,1]).contiguous()
         if target_ids is not None:  
             attn_mask=-1e4 *(1-self.bias[:target_ids.shape[1],:target_ids.shape[1]])
-            tgt_embeddings = self.encoder.embeddings(target_ids).permute([1,0,2]).contiguous()
+            tgt_embeddings = self.encoder1.embeddings(target_ids).permute([1,0,2]).contiguous()
             out = self.decoder(tgt_embeddings,encoder_output,tgt_mask=attn_mask,memory_key_padding_mask=(1-source_mask).bool())
             hidden_states = torch.tanh(self.dense(out)).permute([1,0,2]).contiguous()
             lm_logits = self.lm_head(hidden_states)
@@ -86,7 +94,7 @@ class Seq2Seq(nn.Module):
                     if beam.done():
                         break
                     attn_mask=-1e4 *(1-self.bias[:input_ids.shape[1],:input_ids.shape[1]])
-                    tgt_embeddings = self.encoder.embeddings(input_ids).permute([1,0,2]).contiguous()
+                    tgt_embeddings = self.encoder1.embeddings(input_ids).permute([1,0,2]).contiguous()
                     out = self.decoder(tgt_embeddings,context,tgt_mask=attn_mask,memory_key_padding_mask=(1-context_mask).bool())
                     out = torch.tanh(self.dense(out))
                     hidden_states=out.permute([1,0,2]).contiguous()[:,-1,:]
