@@ -57,11 +57,8 @@ class Seq2Seq(nn.Module):
     def forward(self, source_ids=None,source_mask=None,description_ids=None, description_mask=None,samples_ids=None,samples_mask=None,target_ids=None,target_mask=None,args=None):   
         output1 = self.encoder1(source_ids, attention_mask=source_mask)
         output2 = self.encoder2(description_ids, attention_mask=description_mask)
-        #outputs.append(self.encoder[2](samples_ids, attention_mask=samples_mask))
-        #encoder_output = outputs[0].permute([1,0,2]).contiguous()
         output = torch.cat([output1[0], output2[0]], dim=1).permute([0,2,1]).contiguous()
         encoder_output = self.denseForCat(output).permute([2,0,1]).contiguous()
-        #encoder_output=self.denseForCat(torch.cat([output1[0], output2[0]], dim=1).permute([0,2,1]).contiguous()).permute([0,2,1]).contiguous()
         if target_ids is not None:  
             attn_mask=-1e4 *(1-self.bias[:target_ids.shape[1],:target_ids.shape[1]])
             tgt_embeddings = self.encoder1.embeddings(target_ids).permute([1,0,2]).contiguous()
