@@ -42,7 +42,7 @@ def load_code(dataFrame, dataType=''):
                 stmt = str(lIdx + 1) + ' '
         corr.close()
         incorr.close()
-        dataFrame.at[idx, 'IID'] = cont[COLUMNS[1]]
+        dataFrame.at[idx, 'IID'] = cont[COLUMNS[2]]
         dataFrame.at[idx, 'Correct_code'] = cCodeWithLine
         dataFrame.at[idx, 'Incorrect_code'] = iCodeWithLine
         dataFrame.at[idx, 'Statement'] = stmt
