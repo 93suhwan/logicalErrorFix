@@ -29,7 +29,7 @@ class Seq2Seq(nn.Module):
         self.config=config
         self.register_buffer("bias", torch.tril(torch.ones(2048, 2048)))
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.denseForCat = nn.Linear(config.max_position_embeddings - 2 + 4096 , config.max_position_embeddings - 2)
+        self.denseForCat = nn.Linear((config.max_position_embeddings - 2) * 2 , config.max_position_embeddings - 2)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.lsm = nn.LogSoftmax(dim=-1)
         self.tie_weights()
@@ -54,9 +54,9 @@ class Seq2Seq(nn.Module):
         self._tie_or_clone_weights(self.lm_head,
                                    self.encoder1.embeddings.word_embeddings)        
         
-    def forward(self, source_ids=None,source_mask=None,description_ids=None, description_mask=None,samples_ids=None,samples_mask=None,target_ids=None,target_mask=None,args=None):   
+    def forward(self, source_ids=None,source_mask=None,samples_ids=None,samples_mask=None,target_ids=None,target_mask=None,args=None):   
         output1 = self.encoder1(source_ids, attention_mask=source_mask)
-        output2 = self.encoder2(description_ids, attention_mask=description_mask)
+        output2 = self.encoder2(samples_ids, attention_mask=samples_mask)
         output = torch.cat([output1[0], output2[0]], dim=1).permute([0,2,1]).contiguous()
         encoder_output = self.denseForCat(output).permute([2,0,1]).contiguous()
         if target_ids is not None:  
